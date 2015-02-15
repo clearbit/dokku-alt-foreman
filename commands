@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+source "$(dirname $0)/../dokku_common"
+
+# Check if name is specified
+if [[ $1 == foreman ]] || [[ $1 == foreman:* ]]; then
+  if [[ -z $2 ]]; then
+    echo "You must specify an app name"
+    exit 1
+  else
+    verify_app_name "$2"
+  fi
+fi
+
+FOREMAN_CONCURRENCY_FILE="$DOKKU_ROOT/$APP/FOREMAN_CONCURRENCY"
+FOREMAN_CONCURRENCY_FILE_TEMP="$DOKKU_ROOT/$APP/FOREMAN_CONCURRENCY.tmp"
+FOREMAN_DEFAULT_CONCURRENCY=${FOREMAN_DEFAULT_CONCURRENCY:-web=1}
+
+foreman_config() {
+  echo "$1" > "$FOREMAN_CONCURRENCY_FILE_TEMP"
+  if ! cmp -s "$FOREMAN_CONCURRENCY_FILE" "$FOREMAN_CONCURRENCY_FILE_TEMP"; then
+    echo "-----> Configuring foreman and restarting $APP"
+    cp -f "$FOREMAN_CONCURRENCY_FILE_TEMP" "$FOREMAN_CONCURRENCY_FILE"
+    dokku rebuild "$APP"
+  fi
+  rm -f "$FOREMAN_CONCURRENCY_FILE_TEMP"
+}
+
+case "$1" in
+  foreman)
+    cat $FOREMAN_CONCURRENCY_FILE
+  ;;
+
+  foreman:install)
+    [ -f $FOREMAN_CONCURRENCY_FILE ] || {
+      foreman_config $FOREMAN_DEFAULT_CONCURRENCY
+    }
+  ;;
+
+  foreman:set)
+    verify_max_args 3 "$@"
+    foreman_config "$3"
+  ;;
+
+  help|foreman:help)
+    cat && cat<<EOF
+    foreman <app>                            Display the foreman configuration for an app
+    foreman:set <app> <concurrency>          Set the foreman concurrency for an app
+EOF
+  ;;
+
+  *)
+    exit $DOKKU_NOT_IMPLEMENTED_EXIT
+    ;;
+
+esac
