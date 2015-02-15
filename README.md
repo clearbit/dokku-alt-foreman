@@ -37,8 +37,16 @@ To adjust the concurrency:
 $ dokku foreman:set web=0,sidekiq=1
 ```
 
-Note: `foreman:install` is not required before using `foreman:set`. If you are
+Notes
+-----
+
+`foreman:install` is not required before using `foreman:set`. If you are
 planning to use non-default concurrency it's recommended to use `foreman:set`
 with your desired values without calling `foreman:install` first. This
 avoids restarting your app twice (and possibly firing up processes you didn't
 wish to be running).
+
+While you can set `web=2` to run more than one web process, this won't work as
+expected out of the box with dokku-alt as the second web process won't be able
+to bind to the correct port for dokku-alt to reach it. Processes other than web
+can be scaled as long as they don't require binding to a specific port.
